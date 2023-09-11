@@ -8,28 +8,6 @@ int sign(float x) {
   return 0;
 }
 
-//Chassis PD
-float YKP = 4;
-float YKD = 0;
-float prevYP = 0;
-float YP = 0;
-float getY(float yTarg, float xTarg) {
-  float IMURAD = DrivetrainInertial.rotation()*M_PI/180; // heading of the robot in RAD
-  float Yerror = yTarg - Y; // error on Y axis
-  float Xerror = xTarg - X; // error on X axis
-
-  YP = Yerror * cos(IMURAD) + Xerror * sin(IMURAD);  //KP base
-  float YD = YP - prevYP;  //KD base
-  prevYP = YP; //previous error
-
-  float speed = (YP * YKP) + (YD * YKD);
-  if (fabs(speed) > yMax) {
-    speed = yMax * sign(YP);
-  }
-  return speed;
-}
-
-
 void spinRoller(int b, double a){
   if(b==-1)
     intake.spinFor(reverse, a, sec);
@@ -86,36 +64,30 @@ void eat(double a){
   intake.setVelocity(100,pct);
   intake.spinFor(a, degrees, false);
 }
-void toPoint(float x, float y, float yspeed, float hspeed, float ykp, float hkp, float breakLength);
-//void driveToPoint (double goalx, double goaly, double goalturning, int maxSpeed, int minSpeed, double turnCompletionPoint, double drivekP, double drivekD, double turnkP, double turnkD)
-float xGoal = 0;
-float yGoal = 0;
-float hGoal = 0;
-
 void l(){
   
   enableDrivePD = true;
   vex::task PID(PDdrive);
-  // Drivetrain.setDriveVelocity(35, pct);
-  // Drivetrain.driveFor(reverse, 6, inches, true);//back up 
-  // wait(200, msec);
-  // strafeR(-900);//strafe right
-  // wait(200, msec);
-  // Drivetrain.setTimeout(2.0 , sec);
-  // Drivetrain.driveFor(5.5, inches, true);
-  // wait(1000, msec);//wait and roller 
-  // Drivetrain.driveFor(1.0, inches, false);
-  // roller.spinFor(50, deg, true);//roller 
-  // Drivetrain.driveFor(reverse, 5.0, inches,true);
-  // wait(200,msec);
-  // Drivetrain.setTimeout(2.0,sec);
-  // Drivetrain.setTurnVelocity(50.0,pct);
-  // turnLeft(30, 88);
-  // Drivetrain.setTimeout(5.0,sec);
-  // Drivetrain.driveFor(reverse,40,inches,true);
-  // flywheel.spinFor(forward, 2000, deg, false);
-  // wait(1500, msec);
-  // jankPush.spinFor(reverse, 50, deg, true);
+  Drivetrain.setDriveVelocity(35, pct);
+  Drivetrain.driveFor(reverse, 6, inches, true);//back up 
+  wait(200, msec);
+  strafeR(-900);//strafe right
+  wait(200, msec);
+  Drivetrain.setTimeout(2.0 , sec);
+  Drivetrain.driveFor(5.5, inches, true);
+  wait(1000, msec);//wait and roller 
+  Drivetrain.driveFor(1.0, inches, false);
+  roller.spinFor(50, deg, true);//roller 
+  Drivetrain.driveFor(reverse, 5.0, inches,true);
+  wait(200,msec);
+  Drivetrain.setTimeout(2.0,sec);
+  Drivetrain.setTurnVelocity(50.0,pct);
+  turnLeft(30, 88);
+  Drivetrain.setTimeout(5.0,sec);
+  Drivetrain.driveFor(reverse,40,inches,true);
+  flywheel.spinFor(forward, 2000, deg, false);
+  wait(1500, msec);
+  //push.spinFor(reverse, 50, deg, true);
 }
 
 const double fieldscale = 1.66548042705, SL = 5.125, SR = 6.25, SB = 5.6875, WheelCircum = 8.63937979737;
@@ -263,14 +235,12 @@ int derivative;
 
 bool enableDrivePD = true;
 bool resetDriveSensors = false;
-double lateralMotorPower=0;
+double motorPower=0;
 void PD(double a, double t){//driving straight function
 // don't use this function to drive for like very short distances(e.g. 6 inches or even 11)
   resetDriveSensors = true;//resets the motor positions
   desiredValue = a;// parameter a is the motor spinning value in degrees 
-  //last time 1790 was the value for the robot to go from the very end to the mid point of the field
-  // to use the value above about 1600 tho, use the overloaded function below and adjust the d value 
-  //(add like idk 0.003 to the value now and see if it drives straight enough)
+
   
   wait(t, msec);// parameter t is the completion time for the driving in msec.
   Drivetrain.stop(brake); 
@@ -286,7 +256,7 @@ void PD(double a, double p, double d, double t){
 
 int PDdrive() {
   while(enableDrivePD){
-    //reseting the sensor values mhm before we get down to business
+    //reseting the sensor values 
   
     if(resetDriveSensors){
       resetDriveSensors = false;//switch off 
@@ -311,23 +281,15 @@ int PDdrive() {
     error = avgPos - desiredValue; //displacement or pos
     //Derivative
     derivative = error - prevError;//takes the rate of change of the displacement, speed
-    //Integral 
-    // if(abs(error) < integralBound){ //if the distance is less than the bound
-    //   totalError += error;
-    // }else{
-    //   totalError =0; //reset it to 0 
-    // }
-
-    // //let's cap the integral 
-    // totalError = abs(totalError) > maxIntegral ? sign(totalError) * maxIntegral : totalError;
-    //"control of the motors" statement
-    lateralMotorPower = error*kp + derivative *kd;
+   
+    
+    motorPower = error*kp + derivative *kd;
     
     //////////////////////////////////////////////////////////////////////SPIN THEM ALL
-    fl.spin(reverse, lateralMotorPower, voltageUnits::volt);
-    bl.spin(reverse, lateralMotorPower, voltageUnits::volt);
-    fr.spin(reverse, lateralMotorPower, voltageUnits::volt);
-    br.spin(reverse, lateralMotorPower, voltageUnits::volt);
+    fl.spin(reverse, motorPower, voltageUnits::volt);
+    bl.spin(reverse, motorPower, voltageUnits::volt);
+    fr.spin(reverse, motorPower, voltageUnits::volt);
+    br.spin(reverse, motorPower, voltageUnits::volt);
     
     prevError = error; //updates the prevError
     
